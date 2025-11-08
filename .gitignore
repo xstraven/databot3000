@@ -20,6 +20,11 @@ override.tf.json
 
 # Exclude terraform.tfvars files to avoid private information from being included
 *.tfvars
+*.tfvars.json
+
+# Exclude terraform state exports
+state.json
+*/state.json
 
 # CLI configuration files
 .terraformrc

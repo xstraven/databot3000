@@ -1,0 +1,18 @@
+# Development Environment Terraform Variables
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars should be added to .gitignore to protect sensitive data
+
+project_id          = "your-gcp-project-id"
+region              = "us-central1"
+zone                = "us-central1-a"
+user_email          = "your-email@example.com"
+billing_account_id  = "your-billing-account-id"
+
+# Workbench configuration
+workbench_enable_gpu       = false  # Set to true to enable GPU
+workbench_gpu_type         = "NVIDIA_TESLA_T4"
+workbench_gpu_count        = 1
+workbench_desired_state    = "STOPPED"  # Set to "ACTIVE" to start immediately
+
+# Service account
+create_service_account_key = false
