@@ -31,7 +31,9 @@ module "apis" {
     "compute.googleapis.com",
     "storage-api.googleapis.com",
     "cloudresourcemanager.googleapis.com",
-    "notebooks.googleapis.com",        # For Vertex AI Workbench
+    "iam.googleapis.com",              # For service account management
+    "notebooks.googleapis.com",        # For Vertex AI Workbench instances
+    "aiplatform.googleapis.com",       # For Vertex AI platform integration
     "run.googleapis.com",              # For Cloud Run
     "redis.googleapis.com",            # For Redis (future)
   ]
