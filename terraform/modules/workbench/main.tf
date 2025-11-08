@@ -28,13 +28,7 @@ resource "google_workbench_instance" "instance" {
       family  = "workbench-instances"
     }
 
-    dynamic "metadata" {
-      for_each = var.metadata
-      content {
-        key   = metadata.key
-        value = metadata.value
-      }
-    }
+    metadata = var.metadata
 
     service_accounts {
       email = var.service_account_email
