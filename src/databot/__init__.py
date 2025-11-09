@@ -3,6 +3,7 @@ Databot3000 - Infrastructure management for personal AI projects on GCP.
 
 Main entry points:
     storage(env) - Get a storage bucket for the environment
+    neondb(project, database) - Get a Neon PostgreSQL client
     from databot.core import StateLoader
     from databot.auth import ServiceAccountAuth
 """
@@ -11,6 +12,7 @@ from .storage import storage, Bucket
 from .config import DatabotConfig
 from .core import StateLoader
 from .auth import ServiceAccountAuth
+from .neondb import neondb, NeonClient
 
 
 __version__ = "0.1.0"
@@ -23,4 +25,6 @@ __all__ = [
     "DatabotConfig",
     "StateLoader",
     "ServiceAccountAuth",
+    "neondb",
+    "NeonClient",
 ]

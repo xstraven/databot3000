@@ -1,0 +1,7 @@
+{
+  "databot": "postgresql://...",
+  "other_project": {
+    "neondb": "postgresql://user:password@host/neondb",
+    "analytics": "postgresql://user:password@host/analytics"
+  }
+}

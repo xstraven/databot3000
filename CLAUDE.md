@@ -72,6 +72,7 @@ databot3000/
 ├── src/databot/
 │   ├── core/             # State loader (reads terraform.tfstate)
 │   ├── storage/          # Storage bucket interface
+│   ├── neondb/           # Neon PostgreSQL database client
 │   ├── auth/             # Service account authentication
 │   └── config.py         # Configuration management
 └── tests/                # Test suite
@@ -106,6 +107,17 @@ databot3000/
 - Methods: `list_files()`, `upload_file()`, `download_file()`, `upload_json()`, `download_json()`
 - Uses Google Cloud Storage client libraries
 - Handles authentication via application default credentials
+
+**neondb(project_name, database_name)** - Neon PostgreSQL client entry point
+- Returns async `NeonClient` object for Neon databases
+- Discovers connection strings from environment variables or config files
+- No schema needs to be specified (defaults to PostgreSQL's `public` schema)
+
+**NeonClient** - Async PostgreSQL client wrapper
+- Methods: `fetch()`, `fetchrow()`, `fetchval()`, `execute()`, `executemany()`
+- Uses `asyncpg` library for high-performance async PostgreSQL connections
+- Supports both single connections and connection pooling
+- Use as context manager: `async with neondb("project") as client:`
 
 ### Terraform Module Pattern
 
@@ -192,6 +204,8 @@ terraform destroy -target=module.workbench_dev -auto-approve
 
 ## Authentication
 
+### GCP Authentication
+
 Python code uses **Application Default Credentials**:
 ```bash
 gcloud auth application-default login
@@ -200,6 +214,26 @@ gcloud auth application-default login
 In dev environment, service accounts can have JSON keys created. The keys are exported via Terraform outputs but **not recommended for production**.
 
 Production should use Workload Identity Federation instead of service account keys.
+
+### Neon Database Authentication
+
+Neon connection strings are discovered in this order:
+1. **Environment variables**: `NEON_<PROJECT>_<DATABASE>` (e.g., `NEON_DATABOT_NEONDB`)
+2. **Fallback env variable**: `NEON_CONNECTION_STRING`
+3. **Config files**: `~/.config/databot/neon.json`, `.neon.json`, or `neon.json`
+
+Example `.neon.json` config:
+```json
+{
+  "databot": "postgresql://user:pass@host/neondb",
+  "other_project": {
+    "neondb": "postgresql://...",
+    "analytics": "postgresql://..."
+  }
+}
+```
+
+Connection strings contain credentials—ensure `.neon.json` is in `.gitignore`.
 
 ## Testing Philosophy
 
@@ -216,6 +250,8 @@ Production should use Workload Identity Federation instead of service account ke
 - Bucket names must be globally unique (use `${project_id}-` prefix)
 - Python package requires `uv` for dependency management (not pip)
 - State file discovery searches multiple paths—explicitly set `state_file` in `DatabotConfig()` if needed
+- **Neon databases**: Use async/await with `neondb` client (requires `asyncpg` library)
+- **Neon config files** (`.neon.json`) contain credentials and are excluded from git
 
 ## GCP-Specific Considerations
 
