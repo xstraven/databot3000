@@ -2,134 +2,143 @@
 
 [He belongs to the cloud now](https://www.youtube.com/watch?v=-HUh9Sg7_eg)
 
+> **Note**: This is my personal infrastructure management system, made public as a portfolio showcase. It demonstrates patterns for infrastructure-as-code, state-driven architecture, and zero-config service discovery.
+
 ## What is this?
 
-Databot3000 is a personal infrastructure management system for AI projects on Google Cloud Platform (GCP). It combines:
+A personal infrastructure management system for AI projects that combines:
 
-- **Terraform Infrastructure** - Modular, reusable IaC for GCP resources
-- **Python Utilities** - Zero-config access to infrastructure from Python
-- **Makefile Automation** - Simple commands for common operations
-
-Use it to spin up ephemeral resources (VMs, Workbenches) for development and manage persistent storage buckets for data.
+- **Terraform Infrastructure** - Modular IaC for GCP, provisioning storage, compute, and networking resources
+- **Python Utilities** - Zero-config access to infrastructure via state-driven discovery
+- **Neon PostgreSQL** - Serverless database integration with async client
+- **Makefile Automation** - Simple commands for managing ephemeral and persistent resources
 
 ### Key Features
 
-✨ **Easy to Use**: `from databot import storage; bucket = storage('dev')`
-🚀 **Modular Infrastructure**: Reusable Terraform modules for storage, compute, networking
-⚡ **Quick Iteration**: Spin up/down ephemeral resources with `make` commands
-🔐 **Secure by Default**: Auto-generated service accounts, per-environment isolation
-📦 **State-Driven**: Python discovers infrastructure from Terraform state automatically
+✨ **Zero Configuration**: `from databot import storage; bucket = storage('dev')` - no manual config needed
+🚀 **Modular Infrastructure**: Reusable Terraform modules for storage, service accounts, workbenches, cloud run
+⚡ **Ephemeral Resources**: Spin up/down expensive compute with `make workbench.up` / `make workbench.down`
+🔐 **Secure by Default**: Auto-generated service accounts, per-environment isolation, credential management
+📦 **State-Driven Discovery**: Python automatically discovers infrastructure from Terraform state files
 
-### Quick Start
+## Architecture
 
-```bash
-# 1. Setup
-make install
-make dev
+The project uses a **state-driven architecture** where infrastructure discovery happens automatically:
 
-# 2. Edit terraform configuration
-cd terraform/environments/dev
-cp terraform.tfvars.example terraform.tfvars
-# ... edit with your GCP project details ...
+1. **Terraform** provisions GCP resources → writes `terraform.tfstate`
+2. **State files** contain infrastructure metadata (bucket names, service accounts, etc.)
+3. **Python package** reads state files at runtime to discover available resources
+4. **User code** accesses infrastructure through simple APIs with zero manual configuration
 
-# 3. Deploy infrastructure
-make terraform.apply
-
-# 4. Use from Python
-python -c "
-from databot import storage
-bucket = storage('dev')
-bucket.upload_json({'hello': 'world'}, 'test.json')
-"
-```
-
-### Use Cases
-
-1. **Spin up ephemeral workbenches** - `make workbench.up` / `make workbench.down`
-2. **Manage storage buckets** - Upload/download files from Python
-3. **Discover infrastructure** - Automatically find buckets, service accounts, etc.
-4. **Cost optimization** - Easily destroy resources to avoid recurring costs
-
-## Documentation
-
-- **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)** - Overview of the rework and architecture
-- **[terraform/README.md](terraform/README.md)** - Terraform infrastructure guide
-- **[src/databot/README.md](src/databot/README.md)** - Python package API and usage
+This eliminates the need for configuration files or hard-coded resource names. The Python code always knows what infrastructure exists by reading Terraform's state.
 
 ## Project Structure
 
 ```
 databot3000/
-├── terraform/                 # Infrastructure-as-Code
+├── terraform/
 │   ├── modules/              # Reusable Terraform modules
-│   └── environments/          # Dev and prod configurations
-├── src/databot/              # Python package
-│   ├── storage/              # Cloud Storage utilities
-│   ├── auth/                 # Authentication helpers
-│   └── core/                 # Core state management
-├── tests/                    # Test suite
-├── Makefile                  # Automation commands
-├── pyproject.toml            # Python configuration
-└── README.md                 # This file
+│   │   ├── gcp-apis/         # Enable GCP APIs
+│   │   ├── storage/          # Cloud Storage buckets
+│   │   ├── service-account/  # IAM service accounts
+│   │   ├── workbench/        # Vertex AI Workbench (GPU instances)
+│   │   └── cloud-run/        # Serverless containers
+│   └── environments/
+│       ├── dev/              # Ephemeral development resources
+│       └── prod/             # Persistent production resources
+├── src/databot/
+│   ├── core/                 # State loader (reads terraform.tfstate)
+│   ├── storage/              # GCS bucket interface
+│   ├── neondb/               # Async PostgreSQL client
+│   ├── auth/                 # Service account authentication
+│   └── config.py             # Configuration discovery
+└── tests/                    # Pytest test suite
+```
+
+## Quick Example
+
+```python
+# Storage: discovered from Terraform state
+from databot import storage
+bucket = storage('dev')
+bucket.upload_json({'data': [1, 2, 3]}, 'results.json')
+
+# Database: async PostgreSQL with Neon
+from databot import neondb
+async with neondb("myproject", "neondb") as db:
+    users = await db.fetch("SELECT * FROM users WHERE active = $1", True)
 ```
 
 ## Makefile Commands
 
-### Setup & Testing
-
 ```bash
-make install                   # Install dependencies
-make test                      # Run tests
-make lint                      # Run linters
-make clean                     # Clean artifacts
-```
+# Setup
+make install                   # Install dependencies (uv)
+make test                      # Run pytest suite
 
-### Infrastructure Management
-
-```bash
+# Infrastructure
 make dev                       # Initialize dev environment
-make terraform.plan            # Preview changes
+make terraform.plan            # Preview infrastructure changes
 make terraform.apply           # Deploy infrastructure
-make terraform.destroy         # Destroy all resources
+make terraform.destroy         # Tear down all resources
+
+# Ephemeral Resources (cost optimization)
+make workbench.up              # Spin up Vertex AI Workbench
+make workbench.down            # Destroy Workbench to save $$$
 ```
 
-### Ephemeral Resources
+## Environment Design
 
-```bash
-make workbench.up              # Spin up Workbench
-make workbench.down            # Destroy Workbench
-make workbench.status          # Show status
-```
+**Dev** (`terraform/environments/dev/`):
+- Ephemeral resources (`force_destroy = true`)
+- 90-day auto-delete on storage
+- Workbench defaults to STOPPED state
+- Service accounts with keys for local development
 
-### State Operations
+**Prod** (`terraform/environments/prod/`):
+- Persistent resources with deletion protection
+- Versioned storage buckets
+- Archive bucket with cold storage migration
+- Workload Identity (no service account keys)
 
-```bash
-make state.export              # Export state as JSON
-make state.show                # List resources
-```
+## Technology Stack
 
-## Python API
+- **Infrastructure**: Terraform >= 1.0, GCP (Cloud Storage, Vertex AI, Cloud Run)
+- **Language**: Python >= 3.11, asyncpg for PostgreSQL
+- **Database**: Neon serverless PostgreSQL
+- **Tooling**: uv for dependency management, pytest for testing
+- **Compute**: Modal Labs for ad-hoc serverless workloads (planned)
 
-### Storage Bucket Access
+## API Examples
+
+### Storage Discovery
 
 ```python
 from databot import storage
 
-# Discover and connect to dev bucket
+# Automatically discovers bucket from terraform state
 bucket = storage('dev')
+bucket.upload_file('data.csv', 'datasets/data.csv')
+files = bucket.list_files(prefix='datasets/')
+```
 
-# List files
-files = bucket.list_files()
+### Database Access
 
-# Upload
-bucket.upload_file('local.txt', 'remote.txt')
+```python
+from databot import neondb
 
-# Download
-bucket.download_file('remote.txt', 'local.txt')
+async with neondb("databot") as db:
+    # Insert with parameterized queries
+    await db.execute(
+        "INSERT INTO logs (event, timestamp) VALUES ($1, $2)",
+        "model_trained", datetime.now()
+    )
 
-# JSON operations
-bucket.upload_json({'key': 'value'}, 'data.json')
-data = bucket.download_json('data.json')
+    # Fetch with filters
+    recent = await db.fetch(
+        "SELECT * FROM logs WHERE timestamp > $1",
+        datetime.now() - timedelta(days=7)
+    )
 ```
 
 ### Infrastructure Discovery
@@ -137,141 +146,32 @@ data = bucket.download_json('data.json')
 ```python
 from databot import DatabotConfig, StateLoader
 
-# High-level config
+# High-level discovery
 config = DatabotConfig(environment='dev')
 buckets = config.get_bucket_names()
-sa_email = config.get_service_account_email()
+service_account = config.get_service_account_email()
 
 # Low-level state access
-loader = StateLoader('terraform.tfstate')
+loader = StateLoader('terraform/environments/dev/terraform.tfstate')
 outputs = loader.get_outputs()
+workbenches = loader.get_google_workbench_instances()
 ```
 
-## Environment Configuration
+## Documentation
 
-### Development (`terraform/environments/dev/`)
-
-- Ephemeral resources (easily destroyed)
-- Auto-generated service accounts with keys
-- Storage buckets with 90-day auto-delete
-- Vertex AI Workbench (STOPPED by default for cost savings)
-
-### Production (`terraform/environments/prod/`)
-
-- Persistent resources (safe from accidental deletion)
-- Service accounts (no keys created)
-- Versioned storage buckets
-- Archive bucket with auto-archival to cold storage
+- **[CLAUDE.md](CLAUDE.md)** - Development guide for Claude Code
+- **[terraform/README.md](terraform/README.md)** - Terraform modules and usage
+- **[src/databot/README.md](src/databot/README.md)** - Python API reference
 
 ## Requirements
 
-- **Terraform** >= 1.0
-- **Python** >= 3.11
-- **Google Cloud Project** with billing enabled
-- **gcloud CLI** for authentication
-
-## Getting Started
-
-1. **Clone and setup**
-   ```bash
-   git clone <repo>
-   cd databot3000
-   make install
-   ```
-
-2. **Configure GCP credentials**
-   ```bash
-   gcloud auth application-default login
-   gcloud config set project YOUR_PROJECT_ID
-   ```
-
-3. **Initialize development environment**
-   ```bash
-   make dev
-   cd terraform/environments/dev
-   cp terraform.tfvars.example terraform.tfvars
-   # Edit terraform.tfvars with your details
-   ```
-
-4. **Deploy infrastructure**
-   ```bash
-   make terraform.plan
-   make terraform.apply
-   ```
-
-5. **Use from Python**
-   ```python
-   from databot import storage
-   bucket = storage('dev')
-   # Use bucket...
-   ```
-
-## Troubleshooting
-
-### State file not found
-
-```bash
-cd terraform/environments/dev
-terraform apply
-```
-
-### Permission denied
-
-```bash
-gcloud auth application-default login
-```
-
-### Workbench creation timeout
-
-```bash
-gcloud services enable notebooks.googleapis.com
-```
-
-For more help, see [terraform/README.md](terraform/README.md#troubleshooting) or [src/databot/README.md](src/databot/README.md#troubleshooting).
-
-## Architecture
-
-The project uses a **state-driven architecture**:
-
-1. **Terraform** provisions GCP resources and outputs configuration
-2. **State files** contain infrastructure metadata
-3. **Python package** reads state files to discover resources
-4. **User code** accesses infrastructure through simple Python APIs
-
-No manual configuration needed - the package automatically discovers what's available!
-
-## Roadmap
-
-- ✅ Storage bucket management
-- ✅ Service account generation
-- ✅ Ephemeral workbench support
-- 📋 Vertex AI compute module
-- 📋 Modal Labs integration
-- 📋 Monitoring and logging
-- 📋 Async support
-
-## Future Work
-
-See [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md#future-enhancements) for planned features and next steps.
-
-## Contributing
-
-When adding features:
-
-1. Create Terraform modules in `terraform/modules/`
-2. Add Python utilities in `src/databot/`
-3. Update documentation
-4. Add tests and run `make test`
-5. Update `IMPLEMENTATION_SUMMARY.md`
-
-## References
-
-- [Terraform AWS Docs](https://www.terraform.io/docs)
-- [Google Cloud Terraform Provider](https://registry.terraform.io/providers/hashicorp/google/latest/docs)
-- [GCP Best Practices](https://cloud.google.com/docs/terraform/best-practices)
+- Terraform >= 1.0
+- Python >= 3.11
+- Google Cloud Project with billing
+- gcloud CLI for authentication
 
 ---
 
 **Version**: 0.1.0
 **Status**: Active Development
-**Last Updated**: November 2024
+**Last Updated**: November 2025

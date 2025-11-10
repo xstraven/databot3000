@@ -12,9 +12,9 @@ terraform {
 }
 
 provider "google" {
-  project             = var.project_id
-  region              = var.region
-  billing_project     = var.project_id
+  project               = var.project_id
+  region                = var.region
+  billing_project       = var.project_id
   user_project_override = true
 }
 
@@ -31,12 +31,32 @@ module "apis" {
     "compute.googleapis.com",
     "storage-api.googleapis.com",
     "cloudresourcemanager.googleapis.com",
-    "iam.googleapis.com",              # For service account management
-    "notebooks.googleapis.com",        # For Vertex AI Workbench instances
-    "aiplatform.googleapis.com",       # For Vertex AI platform integration
-    "run.googleapis.com",              # For Cloud Run
-    "redis.googleapis.com",            # For Redis (future)
+    "billingbudgets.googleapis.com",
+    "iam.googleapis.com",        # For service account management
+    "notebooks.googleapis.com",  # For Vertex AI Workbench instances
+    "aiplatform.googleapis.com", # For Vertex AI platform integration
+    "run.googleapis.com",        # For Cloud Run
+    "redis.googleapis.com",      # For Redis (future)
   ]
+}
+
+# ============================================
+# Billing Budget
+# ============================================
+
+module "budget" {
+  source = "../../modules/budget"
+
+  project_id             = var.project_id
+  environment            = var.environment
+  billing_account_id     = var.billing_account_id
+  user_email             = var.user_email
+  budget_amount          = 50
+  notification_increment = 10
+  labels = merge(var.common_labels, {
+    environment = var.environment
+    type        = "budget-alert"
+  })
 }
 
 # ============================================
@@ -53,8 +73,8 @@ module "sa_dev_databot" {
   enable_workload_identity = false
 
   roles = [
-    "roles/storage.objectAdmin",       # Full access to storage
-    "roles/compute.instanceAdmin",     # Instance management
+    "roles/storage.objectAdmin",   # Full access to storage
+    "roles/compute.instanceAdmin", # Instance management
   ]
 }
 
@@ -65,11 +85,11 @@ module "sa_dev_databot" {
 module "bucket_dev_data" {
   source = "../../modules/storage"
 
-  project_id   = var.project_id
-  bucket_name  = "${var.project_id}-dev-data"
-  location     = "US"
+  project_id    = var.project_id
+  bucket_name   = "${var.project_id}-dev-data"
+  location      = "US"
   storage_class = "STANDARD"
-  force_destroy = true                 # Ephemeral dev bucket
+  force_destroy = true # Ephemeral dev bucket
 
   enable_versioning = false
 
@@ -107,12 +127,12 @@ module "workbench_dev" {
   cpu_machine_type = "e2-medium"
   gpu_machine_type = "n1-standard-4"
 
-  enable_gpu              = var.workbench_enable_gpu
-  gpu_type                = var.workbench_gpu_type
-  gpu_count               = var.workbench_gpu_count
-  service_account_email   = module.sa_dev_databot.service_account_email
-  desired_state           = var.workbench_desired_state
-  disable_public_ip       = false
+  enable_gpu            = var.workbench_enable_gpu
+  gpu_type              = var.workbench_gpu_type
+  gpu_count             = var.workbench_gpu_count
+  service_account_email = module.sa_dev_databot.service_account_email
+  desired_state         = var.workbench_desired_state
+  disable_public_ip     = false
 
   labels = merge(var.common_labels, {
     environment = "dev"
