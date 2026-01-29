@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Data Extraction and Loading Tools"
 readme = "README.md"
 authors = [
-    { email = "dvd.hnrchs@gmail.com" }
+    { email = "xstraven@proton.me" }
 ]
 requires-python = ">=3.11"
 dependencies = [
