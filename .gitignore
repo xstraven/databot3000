@@ -38,8 +38,7 @@ terraform.rc
 .neon.json
 neon.json
 
-# Lock file - opinions vary, but often committed
-# .terraform.lock.hcl    # Some teams commit this, some don't
+# Commit Terraform lock files per environment for reproducible provider versions.
 
 
 

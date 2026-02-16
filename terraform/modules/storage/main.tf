@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.0"
+      version = "~> 7.0"
     }
   }
 }
@@ -15,6 +15,7 @@ resource "google_storage_bucket" "bucket" {
 
   uniform_bucket_level_access = true
   force_destroy               = var.force_destroy
+  public_access_prevention    = var.public_access_prevention
 
   dynamic "lifecycle_rule" {
     for_each = var.lifecycle_rules
@@ -33,6 +34,20 @@ resource "google_storage_bucket" "bucket" {
     for_each = var.enable_versioning ? [1] : []
     content {
       enabled = true
+    }
+  }
+
+  dynamic "retention_policy" {
+    for_each = var.retention_period > 0 ? [1] : []
+    content {
+      retention_period = var.retention_period
+    }
+  }
+
+  dynamic "encryption" {
+    for_each = var.kms_key_name != null && trimspace(var.kms_key_name) != "" ? [1] : []
+    content {
+      default_kms_key_name = var.kms_key_name
     }
   }
 

@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.0"
+      version = "~> 7.0"
     }
   }
 }
@@ -34,5 +34,5 @@ resource "google_service_account_iam_member" "workload_identity" {
   count              = var.enable_workload_identity ? 1 : 0
   service_account_id = google_service_account.service_account.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.kubernetes_namespace}/${var.kubernetes_service_account}]"
+  member             = var.workload_identity_member
 }

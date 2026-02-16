@@ -32,15 +32,17 @@ pytest tests/test_app.py -v  # Run specific test file
 
 ### Terraform Operations
 
-The default working directory is `terraform/environments/dev/`:
-
 ```bash
-make dev                  # Initialize dev environment (terraform init)
-make terraform.plan       # Plan infrastructure changes
-make terraform.apply      # Apply infrastructure changes
-make terraform.destroy    # Destroy all infrastructure
-make state.export         # Export state as JSON
-make state.show          # List terraform state resources
+make dev                                     # Initialize dev environment (terraform init)
+make terraform.plan-dev                      # Plan dev infrastructure changes
+make terraform.apply-dev                     # Apply dev infrastructure changes
+make terraform.destroy-dev                   # Destroy dev infrastructure
+make terraform.init-prod STATE_BUCKET=...    # Initialize prod backend
+make terraform.plan-prod                     # Plan prod infrastructure changes
+make terraform.apply-prod                    # Apply prod infrastructure changes
+make terraform.destroy-prod CONFIRM_PROD_DESTROY=true
+make state.export-dev                        # Export dev state as JSON
+make state.show-dev                          # List dev terraform state resources
 ```
 
 ### Ephemeral Resources
@@ -49,8 +51,6 @@ make state.show          # List terraform state resources
 make workbench.up         # Spin up Vertex AI Workbench
 make workbench.down       # Destroy Workbench (saves cost)
 make workbench.status     # Check Workbench status
-make cloud-run.up         # Deploy Cloud Run service
-make cloud-run.down       # Destroy Cloud Run service
 ```
 
 ## Architecture
@@ -135,9 +135,9 @@ Modules are **composition-based**: environments compose modules in their `main.t
 
 **Dev** (`terraform/environments/dev/`)
 - Ephemeral resources (`force_destroy = true` on buckets)
-- Service accounts with key creation enabled
+- Service account key creation disabled by default (explicit override required)
 - 90-day auto-delete lifecycle on storage
-- Workbench defaults to STOPPED state for cost savings
+- Workbench defaults to STOPPED state and private IP for cost/security
 - Resources can be destroyed freely with `make workbench.down`
 
 **Prod** (`terraform/environments/prod/`)

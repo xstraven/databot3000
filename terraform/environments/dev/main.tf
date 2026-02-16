@@ -1,12 +1,12 @@
 # Development environment configuration
 
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.6, < 2.0"
 
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 6.0"
+      version = "~> 7.0"
     }
   }
 }
@@ -70,11 +70,11 @@ module "sa_dev_databot" {
   service_account_name     = "dev-databot"
   display_name             = "Development Databot Service Account"
   create_key               = var.create_service_account_key
+  allow_key_creation       = var.allow_service_account_key_creation
   enable_workload_identity = false
 
   roles = [
-    "roles/storage.objectAdmin",   # Full access to storage
-    "roles/compute.instanceAdmin", # Instance management
+    "roles/storage.objectAdmin", # Full access to storage
   ]
 }
 
@@ -132,7 +132,7 @@ module "workbench_dev" {
   gpu_count             = var.workbench_gpu_count
   service_account_email = module.sa_dev_databot.service_account_email
   desired_state         = var.workbench_desired_state
-  disable_public_ip     = false
+  disable_public_ip     = var.workbench_disable_public_ip
 
   labels = merge(var.common_labels, {
     environment = "dev"

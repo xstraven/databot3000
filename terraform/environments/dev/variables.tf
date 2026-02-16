@@ -69,8 +69,20 @@ variable "workbench_desired_state" {
   default     = "STOPPED"
 }
 
+variable "workbench_disable_public_ip" {
+  description = "Disable public IP for the Workbench instance"
+  type        = bool
+  default     = true
+}
+
 variable "create_service_account_key" {
-  description = "Whether to create a service account key (not recommended for production)"
+  description = "Whether to create a service account key"
+  type        = bool
+  default     = false
+}
+
+variable "allow_service_account_key_creation" {
+  description = "Explicit override to allow service account key creation"
   type        = bool
   default     = false
 }

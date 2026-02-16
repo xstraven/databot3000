@@ -1,9 +1,11 @@
 .PHONY: help install test lint clean \
 	terraform.init terraform.plan terraform.apply terraform.destroy terraform.show \
+	terraform.init-dev terraform.plan-dev terraform.apply-dev terraform.destroy-dev terraform.show-dev \
+	terraform.init-prod terraform.plan-prod terraform.apply-prod terraform.destroy-prod terraform.show-prod \
+	terraform.check \
 	workbench.up workbench.down workbench.status \
-	cloud-run.up cloud-run.down cloud-run.status \
-	state.export state.show \
-	dev prod
+	state.export state.show state.export-dev state.show-dev state.export-prod state.show-prod \
+	dev prod build docker.build docker.run
 
 # ============================================
 # Help
@@ -14,30 +16,37 @@ help:
 	@echo "=========================================="
 	@echo ""
 	@echo "Setup & Dependencies:"
-	@echo "  make install                   Install Python dependencies"
-	@echo "  make lint                      Run linters (pre-commit)"
-	@echo "  make test                      Run tests"
-	@echo "  make clean                     Clean build artifacts"
+	@echo "  make install                             Install Python dependencies"
+	@echo "  make lint                                Run linters (pre-commit)"
+	@echo "  make test                                Run tests"
+	@echo "  make clean                               Clean build artifacts"
 	@echo ""
 	@echo "Terraform - Development Environment:"
-	@echo "  make dev                       Initialize dev environment"
-	@echo "  make terraform.init            Initialize terraform"
-	@echo "  make terraform.plan            Plan infrastructure changes"
-	@echo "  make terraform.apply           Apply infrastructure changes"
-	@echo "  make terraform.destroy         Destroy all infrastructure"
-	@echo "  make terraform.show            Show current state"
+	@echo "  make dev                                 Initialize dev environment"
+	@echo "  make terraform.init-dev                  Initialize Terraform for dev"
+	@echo "  make terraform.plan-dev                  Plan dev infrastructure changes"
+	@echo "  make terraform.apply-dev                 Apply dev infrastructure changes"
+	@echo "  make terraform.destroy-dev               Destroy dev infrastructure"
+	@echo "  make terraform.show-dev                  Show dev state"
 	@echo ""
-	@echo "Ephemeral Infrastructure:"
-	@echo "  make workbench.up              Spin up Workbench instance"
-	@echo "  make workbench.down            Destroy Workbench instance"
-	@echo "  make workbench.status          Show Workbench status"
-	@echo "  make cloud-run.up              Deploy Cloud Run service"
-	@echo "  make cloud-run.down            Destroy Cloud Run service"
-	@echo "  make cloud-run.status          Show Cloud Run status"
+	@echo "Terraform - Production Environment:"
+	@echo "  make terraform.init-prod STATE_BUCKET=...  Initialize Terraform for prod (remote state)"
+	@echo "  make terraform.plan-prod                 Plan prod infrastructure changes"
+	@echo "  make terraform.apply-prod                Apply prod infrastructure changes"
+	@echo "  make terraform.destroy-prod CONFIRM_PROD_DESTROY=true  Destroy prod infrastructure"
+	@echo "  make terraform.show-prod                 Show prod state"
+	@echo "  make terraform.check                     Run fmt and validate checks locally"
+	@echo ""
+	@echo "Ephemeral Infrastructure (Dev):"
+	@echo "  make workbench.up                        Spin up Workbench instance"
+	@echo "  make workbench.down                      Destroy Workbench instance"
+	@echo "  make workbench.status                    Show Workbench status"
 	@echo ""
 	@echo "Terraform State:"
-	@echo "  make state.export              Export terraform state as JSON"
-	@echo "  make state.show                Show current terraform state"
+	@echo "  make state.export-dev                    Export dev terraform state as JSON"
+	@echo "  make state.show-dev                      Show current dev terraform state"
+	@echo "  make state.export-prod                   Export prod terraform state as JSON"
+	@echo "  make state.show-prod                     Show current prod terraform state"
 	@echo ""
 
 # ============================================
@@ -63,97 +72,149 @@ clean:
 	rm -rf .pytest_cache dist build *.egg-info .coverage htmlcov
 
 # ============================================
-# Terraform - Generic Commands
+# Terraform - Environment Variables
 # ============================================
 
-TF_DIR := terraform/environments/dev
-TF_VARS := terraform.tfvars
+TF_DEV_DIR := terraform/environments/dev
+TF_PROD_DIR := terraform/environments/prod
+STATE_BUCKET ?=
+CONFIRM_PROD_DESTROY ?= false
 
-terraform.init:
-	@echo "Initializing Terraform..."
-	cd $(TF_DIR) && terraform init
+# ============================================
+# Terraform - Dev
+# ============================================
 
-terraform.plan:
-	@echo "Planning Terraform changes..."
-	cd $(TF_DIR) && terraform plan
+terraform.init-dev:
+	@echo "Initializing Terraform (dev)..."
+	cd $(TF_DEV_DIR) && terraform init
 
-terraform.apply:
-	@echo "Applying Terraform changes..."
-	cd $(TF_DIR) && terraform apply
+terraform.plan-dev:
+	@echo "Planning Terraform changes (dev)..."
+	cd $(TF_DEV_DIR) && terraform plan
 
-terraform.destroy:
-	@echo "Destroying Terraform infrastructure..."
-	cd $(TF_DIR) && terraform destroy
+terraform.apply-dev:
+	@echo "Applying Terraform changes (dev)..."
+	cd $(TF_DEV_DIR) && terraform apply
 
-terraform.show:
-	@echo "Showing Terraform state..."
-	cd $(TF_DIR) && terraform show
+terraform.destroy-dev:
+	@echo "Destroying Terraform infrastructure (dev)..."
+	cd $(TF_DEV_DIR) && terraform destroy
+
+terraform.show-dev:
+	@echo "Showing Terraform state (dev)..."
+	cd $(TF_DEV_DIR) && terraform show
+
+# ============================================
+# Terraform - Prod
+# ============================================
+
+terraform.init-prod:
+	@if [ -z "$(STATE_BUCKET)" ]; then \
+		echo "STATE_BUCKET is required. Example: make terraform.init-prod STATE_BUCKET=my-terraform-state-bucket"; \
+		exit 1; \
+	fi
+	@echo "Initializing Terraform (prod) with remote state bucket $(STATE_BUCKET)..."
+	cd $(TF_PROD_DIR) && terraform init -reconfigure -backend-config="bucket=$(STATE_BUCKET)"
+
+terraform.plan-prod:
+	@echo "Planning Terraform changes (prod)..."
+	cd $(TF_PROD_DIR) && terraform plan
+
+terraform.apply-prod:
+	@echo "Applying Terraform changes (prod)..."
+	cd $(TF_PROD_DIR) && terraform apply
+
+terraform.destroy-prod:
+	@if [ "$(CONFIRM_PROD_DESTROY)" != "true" ]; then \
+		echo "Refusing to destroy prod. Re-run with CONFIRM_PROD_DESTROY=true"; \
+		exit 1; \
+	fi
+	@echo "Destroying Terraform infrastructure (prod)..."
+	cd $(TF_PROD_DIR) && terraform destroy
+
+terraform.show-prod:
+	@echo "Showing Terraform state (prod)..."
+	cd $(TF_PROD_DIR) && terraform show
+
+terraform.check:
+	@echo "Checking Terraform formatting..."
+	terraform fmt -check -recursive terraform
+	@echo "Validating Terraform (dev)..."
+	cd $(TF_DEV_DIR) && terraform init -backend=false && terraform validate
+	@echo "Validating Terraform (prod)..."
+	cd $(TF_PROD_DIR) && terraform init -backend=false && terraform validate
+
+# Legacy aliases default to dev
+terraform.init: terraform.init-dev
+terraform.plan: terraform.plan-dev
+terraform.apply: terraform.apply-dev
+terraform.destroy: terraform.destroy-dev
+terraform.show: terraform.show-dev
 
 # ============================================
 # Development Environment Setup
 # ============================================
 
-dev: terraform.init
+dev: terraform.init-dev
 	@echo "Development environment initialized"
 	@echo ""
 	@echo "Next steps:"
-	@echo "1. Edit $(TF_DIR)/$(TF_VARS) with your project details"
-	@echo "2. Run: make terraform.plan"
-	@echo "3. Run: make terraform.apply"
+	@echo "1. Edit $(TF_DEV_DIR)/terraform.tfvars with your project details"
+	@echo "2. Run: make terraform.plan-dev"
+	@echo "3. Run: make terraform.apply-dev"
 	@echo ""
 
 prod:
 	@echo "Production environment setup"
 	@echo ""
 	@echo "Initialize production:"
-	@echo "1. Edit terraform/environments/prod/$(TF_VARS) with your project details"
-	@echo "2. Run: cd terraform/environments/prod && terraform init"
-	@echo "3. Run: make terraform.plan"
-	@echo "4. Run: make terraform.apply"
+	@echo "1. Edit $(TF_PROD_DIR)/terraform.tfvars with your project details"
+	@echo "2. Run: make terraform.init-prod STATE_BUCKET=your-terraform-state-bucket"
+	@echo "3. Run: make terraform.plan-prod"
+	@echo "4. Run: make terraform.apply-prod"
 	@echo ""
 
 # ============================================
-# Ephemeral Infrastructure Management
+# Ephemeral Infrastructure Management (Dev)
 # ============================================
 
-# Workbench instance targets
 workbench.up:
 	@echo "Spinning up Workbench instance..."
-	cd $(TF_DIR) && terraform apply -target=module.workbench_dev -auto-approve
+	cd $(TF_DEV_DIR) && terraform apply -target=module.workbench_dev -auto-approve
 
 workbench.down:
 	@echo "Destroying Workbench instance..."
-	cd $(TF_DIR) && terraform destroy -target=module.workbench_dev -auto-approve
+	cd $(TF_DEV_DIR) && terraform destroy -target=module.workbench_dev -auto-approve
 
 workbench.status:
 	@echo "Workbench instance status:"
-	cd $(TF_DIR) && terraform show -json | grep -A 20 "workbench_dev" || echo "Not found"
-
-# Cloud Run targets
-cloud-run.up:
-	@echo "Deploying Cloud Run service..."
-	cd $(TF_DIR) && terraform apply -target=module.cloud_run -auto-approve
-
-cloud-run.down:
-	@echo "Destroying Cloud Run service..."
-	cd $(TF_DIR) && terraform destroy -target=module.cloud_run -auto-approve
-
-cloud-run.status:
-	@echo "Cloud Run service status:"
-	cd $(TF_DIR) && terraform show -json | grep -A 20 "cloud_run" || echo "Not found"
+	cd $(TF_DEV_DIR) && terraform show -json | grep -A 20 "workbench_dev" || echo "Not found"
 
 # ============================================
 # State Management
 # ============================================
 
-state.export:
-	@echo "Exporting Terraform state to state.json..."
-	cd $(TF_DIR) && terraform state pull > state.json
-	@echo "State exported to $(TF_DIR)/state.json"
+state.export-dev:
+	@echo "Exporting dev Terraform state to state.json..."
+	cd $(TF_DEV_DIR) && terraform state pull > state.json
+	@echo "State exported to $(TF_DEV_DIR)/state.json"
 
-state.show:
-	@echo "Current Terraform state:"
-	cd $(TF_DIR) && terraform state list
+state.show-dev:
+	@echo "Current dev Terraform state:"
+	cd $(TF_DEV_DIR) && terraform state list
+
+state.export-prod:
+	@echo "Exporting prod Terraform state to state.json..."
+	cd $(TF_PROD_DIR) && terraform state pull > state.json
+	@echo "State exported to $(TF_PROD_DIR)/state.json"
+
+state.show-prod:
+	@echo "Current prod Terraform state:"
+	cd $(TF_PROD_DIR) && terraform state list
+
+# Legacy aliases default to dev
+state.export: state.export-dev
+state.show: state.show-dev
 
 # ============================================
 # Build & Deployment
@@ -180,4 +241,3 @@ docker.run:
 # Print Makefile variable for debugging
 print-%:
 	@echo $* = $($*)
-

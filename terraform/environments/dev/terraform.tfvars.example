@@ -13,6 +13,8 @@ workbench_enable_gpu       = false  # Set to true to enable GPU
 workbench_gpu_type         = "NVIDIA_TESLA_T4"
 workbench_gpu_count        = 1
 workbench_desired_state    = "STOPPED"  # Set to "ACTIVE" to start immediately
+workbench_disable_public_ip = true
 
 # Service account
 create_service_account_key = false
+allow_service_account_key_creation = false

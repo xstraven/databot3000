@@ -2,9 +2,19 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.0"
+      version = "~> 7.0"
     }
   }
+}
+
+locals {
+  run_annotations = merge(
+    var.annotations,
+    var.vpc_connector != "" ? {
+      "run.googleapis.com/vpc-access-connector" = var.vpc_connector
+      "run.googleapis.com/vpc-access-egress"    = var.vpc_egress
+    } : {}
+  )
 }
 
 resource "google_cloud_run_service" "service" {
@@ -38,17 +48,14 @@ resource "google_cloud_run_service" "service" {
     }
 
     metadata {
-      labels = var.labels
+      labels      = var.labels
+      annotations = local.run_annotations
     }
   }
 
   traffic {
     percent         = 100
     latest_revision = true
-  }
-
-  lifecycle {
-    ignore_changes = [template[0].metadata[0].annotations]
   }
 }
 
@@ -67,10 +74,4 @@ resource "google_cloud_run_service_iam_member" "service_accounts" {
   service = google_cloud_run_service.service.name
   role    = "roles/run.invoker"
   member  = each.value
-}
-
-# VPC Connector binding if provided
-resource "google_cloud_run_service" "service_with_vpc" {
-  count    = var.vpc_connector != "" ? 0 : 0
-  # This is handled above; VPC is specified in template
 }

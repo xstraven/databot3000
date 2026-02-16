@@ -57,7 +57,7 @@ variable "metadata" {
 variable "disable_public_ip" {
   description = "Whether to disable public IP"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "desired_state" {

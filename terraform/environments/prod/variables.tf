@@ -49,3 +49,36 @@ variable "enable_workload_identity" {
   type        = bool
   default     = false
 }
+
+variable "workload_identity_member" {
+  description = "IAM member string for workload identity binding (required when enable_workload_identity=true)"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "prod_data_retention_period" {
+  description = "Retention period in seconds for the production data bucket (0 disables retention policy)"
+  type        = number
+  default     = 0
+}
+
+variable "archive_retention_period" {
+  description = "Retention period in seconds for the archive bucket (0 disables retention policy)"
+  type        = number
+  default     = 0
+}
+
+variable "prod_data_kms_key_name" {
+  description = "Optional CMEK key for production data bucket encryption"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "archive_kms_key_name" {
+  description = "Optional CMEK key for archive bucket encryption"
+  type        = string
+  default     = null
+  nullable    = true
+}

@@ -53,6 +53,12 @@ variable "labels" {
   default     = {}
 }
 
+variable "annotations" {
+  description = "Additional annotations to apply to the Cloud Run service template"
+  type        = map(string)
+  default     = {}
+}
+
 variable "allow_public_access" {
   description = "Whether to allow public access to the service"
   type        = bool
@@ -69,4 +75,15 @@ variable "vpc_connector" {
   description = "VPC Connector to use for the service"
   type        = string
   default     = ""
+}
+
+variable "vpc_egress" {
+  description = "VPC egress mode when vpc_connector is set (all-traffic or private-ranges-only)"
+  type        = string
+  default     = "private-ranges-only"
+
+  validation {
+    condition     = contains(["all-traffic", "private-ranges-only"], var.vpc_egress)
+    error_message = "vpc_egress must be either \"all-traffic\" or \"private-ranges-only\"."
+  }
 }

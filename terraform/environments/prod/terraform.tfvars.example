@@ -8,5 +8,15 @@ zone                = "us-central1-a"
 user_email          = "your-email@example.com"
 billing_account_id  = "your-billing-account-id"
 
-# Workload Identity (recommended for production)
-enable_workload_identity = false  # Set to true if using GKE with Workload Identity
+# Run in terraform/environments/prod:
+# terraform init -backend-config="bucket=your-terraform-state-bucket"
+
+# Workload Identity
+enable_workload_identity = false
+workload_identity_member = null  # Example: serviceAccount:PROJECT_ID.svc.id.goog[NAMESPACE/KSA]
+
+# Optional hardening controls
+prod_data_retention_period = 0
+archive_retention_period   = 0
+prod_data_kms_key_name     = null
+archive_kms_key_name       = null

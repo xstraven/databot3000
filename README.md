@@ -16,9 +16,9 @@ A personal infrastructure management system for AI projects that combines:
 ### Key Features
 
 ✨ **Zero Configuration**: `from databot import storage; bucket = storage('dev')` - no manual config needed
-🚀 **Modular Infrastructure**: Reusable Terraform modules for storage, service accounts, workbenches, cloud run
+🚀 **Modular Infrastructure**: Reusable Terraform modules for storage, service accounts, workbenches, and cloud run
 ⚡ **Ephemeral Resources**: Spin up/down expensive compute with `make workbench.up` / `make workbench.down`
-🔐 **Secure by Default**: Auto-generated service accounts, per-environment isolation, credential management
+🔐 **Secure by Default**: Key creation disabled by default, private Workbench networking, hardened production buckets
 📦 **State-Driven Discovery**: Python automatically discovers infrastructure from Terraform state files
 
 ## Architecture
@@ -76,13 +76,17 @@ async with neondb("myproject", "neondb") as db:
 make install                   # Install dependencies (uv)
 make test                      # Run pytest suite
 
-# Infrastructure
+# Infrastructure (Dev)
 make dev                       # Initialize dev environment
-make terraform.plan            # Preview infrastructure changes
-make terraform.apply           # Deploy infrastructure
-make terraform.destroy         # Tear down all resources
+make terraform.plan-dev        # Preview dev infrastructure changes
+make terraform.apply-dev       # Deploy dev infrastructure
 
-# Ephemeral Resources (cost optimization)
+# Infrastructure (Prod)
+make terraform.init-prod STATE_BUCKET=your-terraform-state-bucket
+make terraform.plan-prod
+make terraform.apply-prod
+
+# Ephemeral Resources (Dev cost optimization)
 make workbench.up              # Spin up Vertex AI Workbench
 make workbench.down            # Destroy Workbench to save $$$
 ```
@@ -93,17 +97,19 @@ make workbench.down            # Destroy Workbench to save $$$
 - Ephemeral resources (`force_destroy = true`)
 - 90-day auto-delete on storage
 - Workbench defaults to STOPPED state
-- Service accounts with keys for local development
+- Service account keys disabled by default (explicit override required)
+- Workbench defaults to private IP
 
 **Prod** (`terraform/environments/prod/`):
 - Persistent resources with deletion protection
 - Versioned storage buckets
 - Archive bucket with cold storage migration
-- Workload Identity (no service account keys)
+- Public access prevention enforced on buckets
+- Remote GCS Terraform backend required
 
 ## Technology Stack
 
-- **Infrastructure**: Terraform >= 1.0, GCP (Cloud Storage, Vertex AI, Cloud Run)
+- **Infrastructure**: Terraform >= 1.6, GCP (Cloud Storage, Vertex AI, Cloud Run)
 - **Language**: Python >= 3.11, asyncpg for PostgreSQL
 - **Database**: Neon serverless PostgreSQL
 - **Tooling**: uv for dependency management, pytest for testing
@@ -165,7 +171,7 @@ workbenches = loader.get_google_workbench_instances()
 
 ## Requirements
 
-- Terraform >= 1.0
+- Terraform >= 1.6
 - Python >= 3.11
 - Google Cloud Project with billing
 - gcloud CLI for authentication
